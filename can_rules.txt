@@ -1,0 +1,44 @@
+# Simple CAN IDS Rules
+# Format: ALERT <CAN_ID_HEX_OR_DEC> <BYTE_INDEX> <OPERATOR> <VALUE> <MESSAGE>
+# Operators: ==, !=, >, <, >=, <=, in, notin
+# VALUE for 'in'/'notin' should be comma-separated integers (e.g., 0,1,2)
+#
+# Format: FREQ_ALERT <CAN_ID_HEX_OR_DEC> <MIN_FREQ_HZ> <MAX_FREQ_HZ> <MESSAGE>
+# Checks if the observed frequency of messages for a given CAN ID is within the specified range [MIN_FREQ_HZ, MAX_FREQ_HZ] (inclusive).
+#
+# Lines starting with # are comments.
+
+# --- Rules for ID 0x188 (Expected ~2Hz) ---
+ALERT 0x188-0x190 0 > 2 Byte 1 (idx 0) has unexpected state.
+ALERT 392 0 notin 0,1,2 Byte 1 (idx 0) has unexpected state [notin test].
+FREQ_ALERT 0x188 0.5 2 Frequency out of expected range (0.5-2 Hz). {freq}
+
+# --- Rules for other IDs ---
+# ID 0x2A0 (Expected ~50Hz)
+ALERT 0x2A0 3 > 100 "ID 0x2A0: Byte 4 (idx 3) value exceeds threshold 100"
+FREQ_ALERT 0x2A0 45 55 "ID 0x2A0: Frequency out of expected range (45-55 Hz)."
+
+# ID 0x3B1 (Expected <= 2Hz)
+ALERT 0x3B1 7 == 255 "ID 0x3B1: Byte 8 (idx 7) has specific value FF"
+FREQ_ALERT 0x3B1 0 2 "ID 0x3B1: Frequency exceeds expected maximum (2 Hz)."
+
+# ID 0x400 (Expected ~100Hz)
+ALERT 0x400 0 == 1 "ID 0x400: Byte 1 (idx 0) indicates specific event."
+FREQ_ALERT 0x400 95 105 "ID 0x400: Frequency out of expected range (95-105 Hz)."
+
+# ID 0x505 (Event-driven, no strict frequency expected)
+ALERT 0x505 2 in 10,20,30 "ID 0x505: Byte 3 (idx 2) matches known critical values."
+
+# ID 0x600 (Expected 5-15 Hz)
+# Rule that might trigger if message DLC is too short (byte index out of range)
+# ALERT 0x600 7 > 0 "ID 0x600: Check byte 8 if present"
+FREQ_ALERT 0x600 5 15 "ID 0x600: Frequency out of expected range (5-15 Hz)."
+
+ALERT 580 3-4 > 0x21C4 too damn fast bro
+ALERT 580 3-3 > 0x20 lol
+ALERT 0x244 3 &0xF0 == 0x20 Some bitmask match alert
+ALERT 0x244 3 == twenty hello
+you can write whatever you like here and the program will not see it unless it starts with 
+alert in which case it becomes an error
+
+LENGTH_ALERT 0x188 4 Data length ({length}) exceeds expected max (4)
