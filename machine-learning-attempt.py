@@ -2,14 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.svm import OneClassSVM
 from sklearn.preprocessing import RobustScaler
-import matplotlib.patches as mpatches
 
 # --- Constants & Config ---
 COLUMNS = ["Time Stamp", "ID", "Extended", "Dir", "Bus", "LEN",
            "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"]
 FEATURES = [f"D{i}" for i in range(1, 9)]
 RANDOM_STATE = 42
-TARGET_ID = 0x188  # Target ID for analysis
+TARGET_ID = 0x244  # Target ID for analysis
 
 # --- Data Loading ---
 def load_data(normal_file, anomaly_file):
@@ -58,30 +57,44 @@ def add_time_deltas(df):
 def plot_results(df, byte_col, id_hex):
     fig, axes = plt.subplots(1, 2, figsize=(24, 5))
 
-    # Normalize anomaly scores between 0 and 1 for consistent coloring
+    # Normalize anomaly scores between 0 and 1 for color mapping
+    # Added small epsilon to prevent division by zero if all scores are identical
     df['norm_score'] = (df['score'] - df['score'].min()) / (df['score'].max() - df['score'].min() + 1e-9)
     df['norm_time_score'] = (df['time_score'] - df['time_score'].min()) / (df['time_score'].max() - df['time_score'].min() + 1e-9)
 
-    # Payload anomaly scatter with fixed colormap scale
-    sc0 = axes[0].scatter(df.index, df[byte_col], c=df['norm_score'], cmap='coolwarm_r', vmin=0, vmax=1, s=50)
+    # --- Payload Anomaly Plot ---
+    # Plot all points using the score for color
+    sc0 = axes[0].scatter(df.index, df[byte_col],
+                          c=df['norm_score'], cmap='coolwarm_r', s=50)
+
     axes[0].set_title(f"Payload Anomaly Score (ID 0x{id_hex:X}, Byte: {byte_col})")
     axes[0].set_xlabel("Message Index")
     axes[0].set_ylabel(f"{byte_col} Value")
     cbar0 = plt.colorbar(sc0, ax=axes[0])
-    cbar0.set_label("Normalized Payload Anomaly Score")
+    cbar0.set_label("Normalized Payload Anomaly Score") # Updated label
     axes[0].grid(True)
 
-    # Time delta anomaly scatter with fixed colormap scale
-    sc1 = axes[1].scatter(df.index, df['Time Delta'], c=df['norm_time_score'], cmap='coolwarm_r', vmin=0, vmax=1, s=50)
+    # --- Timestamp Anomaly Plot ---
+    # Plot all points using the time score for color
+    sc1 = axes[1].scatter(df.index, df['Time Delta'],
+                          c=df['norm_time_score'], cmap='coolwarm_r', s=50)
+
     axes[1].set_title(f"Timestamp Anomaly Score (ID 0x{id_hex:X})")
     axes[1].set_xlabel("Message Index")
     axes[1].set_ylabel("Time Delta (s)")
     cbar1 = plt.colorbar(sc1, ax=axes[1])
-    cbar1.set_label("Normalized Timestamp Anomaly Score")
+    cbar1.set_label("Normalized Timestamp Anomaly Score") # Updated label
+    # Removed the explicit legend as color now represents the score gradient
     axes[1].grid(True)
 
     plt.tight_layout()
+    # Consider creating the figs directory if it doesn't exist
+    import os
+    os.makedirs("figs", exist_ok=True)
+    plt.savefig(f"figs/anomaly_analysis_{id_hex}_{byte_col}.png")
     plt.show()
+
+
 
 
 # --- Main Analysis for Target ID ---
@@ -99,8 +112,8 @@ def analyze_target_id(normal_df, anomaly_df):
 
     # Analyze each byte separately
     for byte in FEATURES:
-        if df_normal[byte].nunique() <= 1:
-            continue  # Skip unchanging bytes
+        # if df_normal[byte].nunique() <= 1:
+        #     continue  # Skip unchanging bytes
 
         print(f"\nAnalyzing byte: {byte}")
 
@@ -139,7 +152,7 @@ def analyze_target_id(normal_df, anomaly_df):
 
 # --- Execute ---
 if __name__ == "__main__":
-    normal_df, anomaly_df = load_data('normal-data-longer', 'normal-data')
+    normal_df, anomaly_df = load_data('data/normal-data-longer', 'data/244-normal-running')
     print("Preprocessing...")
     normal_df = preprocess(normal_df)
     anomaly_df = preprocess(anomaly_df)
